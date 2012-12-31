@@ -1,0 +1,7 @@
+CONNECTION='ppp'
+DESCRIPTION='Connection with GPRS/3G device'
+INTERFACE='ignore'
+PEER='to-gprs'
+PPP_TIMEOUT=30
+PRE_UP='/etc/ppp/wait-dialup-hardware 10'
+

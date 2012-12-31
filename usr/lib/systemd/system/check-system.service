@@ -1,0 +1,13 @@
+[Unit]
+Description=Script for monitoring the network interfaces and restart in case of errors
+After=network.target
+After=dhcpd4.service
+	
+[Service]
+Type=simple
+RemainAfterExit=yes
+ExecStart=/usr/bin/check-system
+
+[Install]
+WantedBy=multi-user.target
+

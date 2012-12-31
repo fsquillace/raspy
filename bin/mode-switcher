@@ -1,0 +1,79 @@
+#!/bin/bash
+
+last_profile="None"
+while true
+do
+    curr_profile=$(netcfg current | awk 'BEGIN{OFS="\n"}{print $0}' | grep ppp)
+
+    # If the profile is not active check after some seconds
+    if [ "$curr_profile" == "" ]
+    then
+        echo "Profile ppp* doesn't exist."
+        last_profile="None"
+        sleep 10
+        continue
+    fi
+
+
+    # Checks whether the profile has remained the same since the last iteration
+    if [ "${last_profile}" != "${curr_profile}" ]
+    then
+        if [ "${curr_profile}" == "ppp" ]
+        then
+            declare -i timeout=3600
+        elif [ "${curr_profile}" == "ppp-to-gprs" ]
+        then
+            declare -i timeout=5
+        fi
+        last_profile=$(netcfg current | awk 'BEGIN{OFS="\n"}{print $0}' | grep ppp)
+        declare -i tx=$(cat /sys/class/net/ppp0/statistics/tx_bytes)
+        declare -i rx=$(cat /sys/class/net/ppp0/statistics/rx_bytes)
+        declare -i start_tot=$(($tx+$rx))
+
+    fi
+
+    sleep $timeout
+
+    declare -i tx=$(cat /sys/class/net/ppp0/statistics/tx_bytes)
+    declare -i rx=$(cat /sys/class/net/ppp0/statistics/rx_bytes)
+    declare -i tot=$(($tx+$rx-${start_tot}))
+    declare -i speed=$(($tot/$timeout))
+    echo "Tot bytes: $tot bytes"
+    echo "Timeout: $timeout sec"
+    echo "Speed: $speed bytes/sec"
+
+
+    # Checks whether the tot amount of bytes is negative.
+    # This situation can happend when the interface was got down
+    # and later got up.
+    if [ "$tot" -lt "0" ]
+    then
+        # Reinit
+        last_profile="None"
+        continue
+    fi
+
+
+    if [ "$curr_profile" == "ppp" -a "$tot" -lt "1048576" ]
+    then
+        echo "Low traffic: ppp -> ppp-to-gprs"
+        timeout 60 netcfg down ppp
+        # To prevent any strange lock let's use poff too.
+        timeout 60 poff -a provider
+        timeout 60 poff -a to-gprs
+        sleep 2
+        timeout 60 netcfg ppp-to-gprs
+    elif [ "$curr_profile" == "ppp-to-gprs" -a "$speed" -gt "10240" ]
+    then
+        echo "High traffic: ppp-to-gprs -> ppp"
+        timeout 60 netcfg down ppp-to-gprs
+        # To prevent any strange lock let's use poff too.
+        timeout 60 poff -a provider
+        timeout 60 poff -a to-gprs
+        sleep 2
+        timeout 60 netcfg ppp
+    fi
+
+    start_tot=$(($tx+$rx))
+
+done

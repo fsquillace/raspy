@@ -1,0 +1,13 @@
+[Unit]
+Description=Monitor the traffic of ppp interface and switch between 3G and GPRS accordingly
+After=network.target
+After=dhcpd4.service
+	
+[Service]
+Type=simple
+RemainAfterExit=yes
+ExecStart=/usr/bin/mode-switcher
+
+[Install]
+WantedBy=multi-user.target
+

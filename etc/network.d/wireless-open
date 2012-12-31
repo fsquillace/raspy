@@ -1,0 +1,11 @@
+CONNECTION='ethernet'
+DESCRIPTION='A simple opened wireless connection'
+INTERFACE='wlan0'
+#SECURITY='none'
+#ESSID='test'
+IP='static'
+ADDR='10.0.0.1'
+NETMASK='255.255.255.0'
+SKIPNOCARRIER='yes'
+# Uncomment this if your ssid is hidden
+#HIDDEN=yes

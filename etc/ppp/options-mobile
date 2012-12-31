@@ -1,0 +1,24 @@
+ttyUSB0
+921600
+lock
+crtscts
+modem
+passive
+novj
+defaultroute
+noipdefault
+usepeerdns
+noauth
+hide-password
+persist
+holdoff 10
+maxfail 0
+debug
+
+# Used to get rid the compression protocol
+#noccp
+#nobsdcomp
+#nodeflate
+#novjccomp
+#nopcomp
+#noaccomp

@@ -1,0 +1,148 @@
+#!/bin/bash
+declare -i counter=0
+
+function update_errors_count()
+{
+
+    # increment the counter
+    counter=$(($counter + 1))
+
+    if [ "$counter" == "4" ]
+    then
+        echo "System will be restarted within 5 minutes"
+        shutdown -r +5 "System restaring because of a bad init of services"
+        exit 1
+    else
+        echo "The counter error is: $counter"
+    fi
+
+}
+
+
+# Waits until the system is properly booted
+sleep 60
+
+
+while [ true ]
+do
+
+errors=false
+
+# Ethernet check
+#timeout 60 ping -c 5 192.168.1.2 1> /dev/null
+#if [ "$?" != 0 ]
+#then
+  #echo "Ethernet is not working!"
+  #update_errors_count
+  #errors=true
+  #timeout 60 netcfg down ethernet-static
+  #timeout 60 netcfg ethernet-static
+#fi
+
+
+# PPP check
+# Get the profile
+curr_profile=$(netcfg current | awk 'BEGIN{OFS="\n"}{print $0}' | grep ppp)
+if [ -z $curr_profile ]
+then
+    curr_profile="ppp"
+fi
+
+#timeout 60 ping -c 2 8.8.8.8 1> /dev/null
+#if [ "$?" != 0 ]
+#then
+  #echo "DNS is not working!"
+  #update_errors_count
+  #errors=true
+  #timeout 60 netcfg down $curr_profile
+  #timeout 60 netcfg curr_profile
+#fi
+timeout 60 ping -c 1 www.google.com 1> /dev/null
+if [ "$?" != 0 ]
+then
+  echo "Internet is not working!"
+  update_errors_count
+  errors=true
+  timeout 60 netcfg down $curr_profile
+  # To prevent any strange lock let's use poff too.
+  timeout 60 poff -a provider
+  timeout 60 poff -a to-gprs
+  sleep 2
+  timeout 60 netcfg $curr_profile
+fi
+
+
+# WLAN check
+timeout 60 ping -c 5 10.0.0.1 1> /dev/null
+if [ "$?" != 0 ]
+then
+  echo "WLAN is not working!"
+  update_errors_count
+  errors=true
+  timeout 60 netcfg down wireless-open
+  sleep 10
+  timeout 60 netcfg wireless-open
+  sleep 10
+  timeout 60 systemctl restart hostapd.service
+  sleep 10
+  timeout 60 systemctl restart dhcpd4.service
+fi
+
+
+# Netcfg check
+timeout 60 systemctl status netcfg.service 1> /dev/null
+if [ "$?" != 0 ]
+then
+  echo "Netcfg is not working!"
+  update_errors_count
+  errors=true
+  timeout 60 systemctl restart netcfg.service
+  sleep 10
+  timeout 60 systemctl restart hostapd.service
+fi
+
+
+# Hostapd check
+timeout 60 systemctl status hostapd.service 1> /dev/null
+if [ "$?" != 0 ]
+then
+  echo "Hostapd is not working!"
+  update_errors_count
+  errors=true
+  timeout 60 systemctl restart hostapd.service
+  sleep 10
+  timeout 60 systemctl restart dhcpd4.service
+fi
+
+
+# DHCPD4 check
+timeout 60 systemctl status dhcpd4.service 1> /dev/null
+if [ "$?" != 0 ]
+then
+  echo "DHCPD4 is not working!"
+  update_errors_count
+  errors=true
+  timeout 60 systemctl restart dhcpd4.service
+fi
+
+# IPTABLES check
+timeout 60 systemctl status iptables.service 1> /dev/null
+if [ "$?" != 0 ]
+then
+  echo "IPTABLES is not working!"
+  update_errors_count
+  errors=true
+  timeout 60 systemctl restart iptables.service
+fi
+
+
+# If there are no errors restart the counter
+if ! $errors
+then
+    echo "Everything works properly"
+    declare -i counter=0
+fi
+
+sleep 300
+
+done
